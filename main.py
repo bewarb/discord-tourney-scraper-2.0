@@ -27,7 +27,7 @@ intents.message_content = True  # Ensure message content intent is enabled
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Background task to refresh the database every 3 hours
-@tasks.loop(hours=1)
+@tasks.loop(hours=3)
 async def periodic_scraper():
     print("Running periodic scraper...")
     try:
@@ -46,37 +46,50 @@ async def on_ready():
     periodic_scraper.start()
 
 @bot.command(name="tourney")
-async def tourney_command(ctx):
+async def tourney_command(ctx, *args):
     """
-    Fetch and display tournaments based on the user's roles.
+    Fetch and display tournaments based on the user's roles or provided filters.
     """
     try:
-        # Get user roles
+        # Default to user roles if no arguments provided
         user_roles = [role.name for role in ctx.author.roles]
         allowed_types = [ROLE_TO_TYPE_MAPPING[role] for role in user_roles if role in ROLE_TO_TYPE_MAPPING]
 
-        if not allowed_types:
-            await ctx.send("You do not have any roles that match tournament types (M, W, RCO).")
-            return
+        # Parse arguments
+        type_filter = args[0] if len(args) > 0 and args[0] in ROLE_TO_TYPE_MAPPING.values() else None
+        level_filter = args[1] if len(args) > 1 else None
+        location_filter = args[2] if len(args) > 2 else None
 
-        # Fetch tournaments matching the user's roles
-        tournaments = fetch_tournaments_by_roles(allowed_types)
+        # Fetch tournaments based on filters or roles
+        if args:  # If filters are provided
+            tournaments = fetch_tournaments(
+                allowed_types=[type_filter] if type_filter else None,
+                level_filter=level_filter,
+                location_filter=location_filter,
+            )
+        else:  # Default to roles
+            tournaments = fetch_tournaments(allowed_types=allowed_types)
 
+        # Handle no results
         if not tournaments:
-            await ctx.send("No tournaments found that match your roles.")
+            await ctx.send("No tournaments found matching your criteria.")
             return
 
-        message = "**Tournaments Based on Your Roles:**\n"
-        for t in tournaments[:10]:  # Show the first 10 tournaments
+        # Format and send results
+        message = "**Tournaments:**\n"
+        for t in tournaments[:5]:
             message += (
-                f"🔹 **Name:** [{t[2]}]({t[3]})\n"
-                f"   🔸 **Date:** {t[1]}\n"
-                f"   🔸 **Location:** {t[4]}\n"
-                f"   🔸 **Max Teams:** {t[8]}\n"
-                f"   🔸 **Confirmed Teams:** {t[9]}\n"
-                f"   🔸 **Status:** {t[10]}\n\n"
+                f"\ud83d\udd39 **Name:** [{t[2]}]({t[3]})\n"
+                f"   \ud83d\udd38 **Date:** {t[1]}\n"
+                f"   \ud83d\udd38 **Location:** {t[4]}\n"
+                f"   \ud83d\udd38 **Type:** {t[5]}\n"
+                f"   \ud83d\udd38 **Level:** {t[6]}\n"
+                f"   \ud83d\udd38 **Max Teams:** {t[8]}\n"
+                f"   \ud83d\udd38 **Confirmed Teams:** {t[9]}\n"
+                f"   \ud83d\udd38 **Status:** {t[10]}\n\n"
             )
         await ctx.send(message)
+
     except Exception as e:
         await ctx.send(f"An error occurred: {str(e)}")
 
@@ -91,19 +104,29 @@ async def refresh_command(ctx):
     except Exception as e:
         await ctx.send(f"An error occurred: {str(e)}")
 
-def fetch_tournaments_by_roles(allowed_types):
+def fetch_tournaments(allowed_types=None, level_filter=None, location_filter=None):
     """
-    Fetch tournaments by allowed types (e.g., M, W, RCO) from the database.
+    Fetch tournaments by filters: type, level, and location.
     """
     conn = connect_db()
     cursor = conn.cursor()
 
-    # Dynamically build query based on allowed types
-    query = f"""
-    SELECT * FROM tournaments
-    WHERE type IN ({', '.join(['%s'] * len(allowed_types))})
-    """
-    cursor.execute(query, allowed_types)
+    query = "SELECT * FROM tournaments WHERE 1=1"
+    params = []
+
+    if allowed_types:
+        query += " AND type IN ({})".format(", ".join(["%s"] * len(allowed_types)))
+        params.extend(allowed_types)
+
+    if level_filter:
+        query += " AND level = %s"
+        params.append(level_filter)
+
+    if location_filter:
+        query += " AND location ILIKE %s"
+        params.append(f"%{location_filter}%")
+
+    cursor.execute(query, params)
     results = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -114,7 +137,6 @@ async def on_message(message):
     user_roles = [role.name for role in message.author.roles]
     print(f"User: {message.author.name}, Roles: {user_roles}")
     await bot.process_commands(message)
-
 
 # Run the bot
 if __name__ == "__main__":
