@@ -12,11 +12,11 @@ def insert_tournaments(data):
     cursor.close()
     conn.close()
 
-# Example usage
 if __name__ == "__main__":
-    tournaments = [
-        ("12/21/24", "RCO C", "https://yankee.org/tournaments/rco-c-12-21-2024", "TUH", "RCO", "C", "$200", 10, 5, "Open"),
-        ("01/01/25", "M C", "https://yankee.org/tournaments/m-c-01-01-2025", "BRU", "M", "C", "$150", 8, 6, "Open"),
-    ]
-    insert_tournaments(tournaments)
-    print("Data inserted successfully.")
+    # Uncomment the lines below to insert sample data for testing
+    # tournaments = [
+    #     ("12/21/24", "RCO C", "https://yankee.org/tournaments/rco-c-12-21-2024", "TUH", "RCO", "C", "$200", 10, 5, "Open"),
+    #     ("01/01/25", "M C", "https://yankee.org/tournaments/m-c-01-01-2025", "BRU", "M", "C", "$150", 8, 6, "Open"),
+    # ]
+    # insert_tournaments(tournaments)
+    print("Insert data script completed.")

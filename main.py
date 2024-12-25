@@ -2,6 +2,12 @@ import discord
 from discord.ext import commands, tasks
 from scraper import update_database_with_scraper
 from db import connect_db
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
 # Define role-to-tournament type mapping
 ROLE_TO_TYPE_MAPPING = {
@@ -15,17 +21,18 @@ intents = discord.Intents.default()
 intents.messages = True
 intents.guilds = True
 intents.members = True  # Required for accessing member roles
+intents.message_content = True  # Ensure message content intent is enabled
 
 # Initialize the bot
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Background task to refresh the database every 3 hours
-@tasks.loop(hours=3)
+@tasks.loop(hours=1)
 async def periodic_scraper():
     print("Running periodic scraper...")
     try:
         update_database_with_scraper()
-        print("Database successfully refreshed with latest tournament data.")
+        print("Database successfully refreshed with the latest tournament data.")
     except Exception as e:
         print(f"Error during periodic scraping: {str(e)}")
 
@@ -102,11 +109,13 @@ def fetch_tournaments_by_roles(allowed_types):
     conn.close()
     return results
 
+@bot.event
+async def on_message(message):
+    user_roles = [role.name for role in message.author.roles]
+    print(f"User: {message.author.name}, Roles: {user_roles}")
+    await bot.process_commands(message)
+
+
 # Run the bot
 if __name__ == "__main__":
-    import os
-    from dotenv import load_dotenv
-
-    load_dotenv()
-    DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
     bot.run(DISCORD_TOKEN)

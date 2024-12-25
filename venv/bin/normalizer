@@ -1,4 +1,4 @@
-#!/Users/briana/Desktop/Volleyball/discord-scraper2.0/venv/bin/python3.13
+#!/Users/briana/Desktop/Volleyball/discord-scraper2.0/venv/bin/python3.11
 # -*- coding: utf-8 -*-
 import re
 import sys

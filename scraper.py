@@ -1,67 +1,93 @@
-from bs4 import BeautifulSoup
 import requests
+from bs4 import BeautifulSoup
 from db import connect_db
 
-BASE_URL = 'https://yankee.org'
+BASE_URL = "https://yankee.org/tournaments"  # Replace with the actual URL
 
 def scrape_tournaments():
-    """
-    Scrape tournaments from the website and return them as a list of dictionaries.
-    """
-    response = requests.get(f"{BASE_URL}/tournaments")
-    response.raise_for_status()  # Raise an error if the request fails
+    response = requests.get(BASE_URL)
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # Find the tournament table
-    table = soup.find("table", class_="tournamentList")
     tournaments = []
 
-    for row in table.find("tbody").find_all("tr"):
+    # Locate the table body containing tournament rows
+    table_body = soup.find("tbody")  # Adjusted to the <tbody> element
+    if not table_body:
+        print("No table body found. Check the website structure.")
+        return tournaments
+
+    rows = table_body.find_all("tr")  # Find all table rows
+    for row in rows:
         try:
-            cells = row.find_all("td")
+            # Extract data safely
+            date = row.find_all("td")[0].text.strip()  # Date
+            name_cell = row.find_all("td")[1]  # Tournament name and link
+            name = name_cell.text.strip()
+            link = name_cell.find("a")["href"] if name_cell.find("a") else "No link available"
+            location = row.find_all("td")[2].text.strip()  # Location
+            type_ = row.find_all("td")[3].text.strip()  # Type
+            level = row.find_all("td")[4].text.strip()  # Level
+            cost = row.find_all("td")[7].text.strip()  # Cost
+            max_teams = row.find_all("td")[9].text.strip()  # Max teams
+            confirmed = row.find_all("td")[10].text.strip().split()[0]  # Confirmed teams
+            status = row.find_all("td")[11].text.strip()  # Status
+
+            # Add the tournament to the list
             tournaments.append({
-                "date": cells[0].text.strip(),
-                "name": cells[1].text.strip(),
-                "link": BASE_URL + row["data-url"],
-                "location": cells[2].text.strip(),
-                "type": cells[3].text.strip(),
-                "level": cells[4].text.strip(),
-                "cost": cells[7].text.strip(),
-                "max_teams": int(cells[9].text.strip()),
-                "confirmed": int(cells[10].text.strip()),
-                "status": cells[11].text.strip()
+                "date": date,
+                "name": name,
+                "link": link,
+                "location": location,
+                "type": type_,
+                "level": level,
+                "cost": cost,
+                "max_teams": int(max_teams),
+                "confirmed": int(confirmed),
+                "status": status
             })
-        except (AttributeError, IndexError, ValueError):
-            # Skip rows with missing or invalid data
-            continue
+        except Exception as e:
+            print(f"Error parsing row: {e}")
 
     return tournaments
 
 def update_database_with_scraper():
     """
-    Scrape tournaments and update the database with fresh data.
+    Scrape tournament data and update the database.
     """
     tournaments = scrape_tournaments()
+    if not tournaments:
+        print("No tournaments found to insert.")
+        return
+
     conn = connect_db()
     cursor = conn.cursor()
 
-    # Clear existing data (optional: depends on your requirements)
-    cursor.execute("DELETE FROM tournaments")
+    # Clear the table before inserting new data
+    try:
+        cursor.execute("DELETE FROM tournaments")
+        print("Cleared the tournaments table.")
+    except Exception as e:
+        print(f"Error clearing table: {e}")
 
-    # Insert new data
-    insert_query = '''
-    INSERT INTO tournaments (date, name, link, location, type, level, cost, max_teams, confirmed, status)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    '''
-    tournament_data = [
-        (t["date"], t["name"], t["link"], t["location"], t["type"], t["level"], t["cost"], t["max_teams"], t["confirmed"], t["status"])
-        for t in tournaments
-    ]
-    cursor.executemany(insert_query, tournament_data)
+    # Insert the scraped data into the table
+    for t in tournaments:
+        try:
+            cursor.execute(
+                """
+                INSERT INTO tournaments (date, name, link, location, type, level, cost, max_teams, confirmed, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (t["date"], t["name"], t["link"], t["location"], t["type"], t["level"],
+                 t["cost"], t["max_teams"], t["confirmed"], t["status"]),
+            )
+            print(f"Inserted: {t['name']}")
+        except Exception as e:
+            print(f"Error inserting {t['name']}: {e}")
+
     conn.commit()
     cursor.close()
     conn.close()
-    print("Database updated with scraped data.")
+    print("Database updated successfully.")
 
 if __name__ == "__main__":
     update_database_with_scraper()
