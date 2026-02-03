@@ -1,5 +1,6 @@
 from db import connect_db
 
+
 def fetch_tournaments_by_type(tournament_type):
     conn = connect_db()
     cursor = conn.cursor()
@@ -10,6 +11,7 @@ def fetch_tournaments_by_type(tournament_type):
     conn.close()
     return results
 
+
 def fetch_tournaments(allowed_types=None, level_filter=None, location_filter=None):
     conn = connect_db()
     cursor = conn.cursor()
@@ -18,8 +20,10 @@ def fetch_tournaments(allowed_types=None, level_filter=None, location_filter=Non
     params = []
 
     if allowed_types:
-        query += " AND type IN (%s)" % ", ".join(["%s"] * len(allowed_types))
+        placeholders = ", ".join(["%s"] * len(allowed_types))
+        query += f" AND type IN ({placeholders})"
         params.extend(allowed_types)
+
 
     if level_filter:
         query += " AND level = %s"

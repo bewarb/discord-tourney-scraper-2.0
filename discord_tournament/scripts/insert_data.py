@@ -1,16 +1,18 @@
 from db import connect_db
 
+
 def insert_tournaments(data):
     conn = connect_db()
     cursor = conn.cursor()
-    query = '''
+    query = """
     INSERT INTO tournaments (date, name, link, location, type, level, cost, max_teams, confirmed, status)
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    '''
+    """
     cursor.executemany(query, data)
     conn.commit()
     cursor.close()
     conn.close()
+
 
 if __name__ == "__main__":
     # Uncomment the lines below to insert sample data for testing

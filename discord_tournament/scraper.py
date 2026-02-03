@@ -4,6 +4,7 @@ from db import connect_db
 
 BASE_URL = "https://yankee.org/tournaments"  # Replace with the actual URL
 
+
 def scrape_tournaments():
     response = requests.get(BASE_URL)
     soup = BeautifulSoup(response.text, "html.parser")
@@ -33,22 +34,25 @@ def scrape_tournaments():
             status = row.find_all("td")[11].text.strip()  # Status
 
             # Add the tournament to the list
-            tournaments.append({
-                "date": date,
-                "name": name,
-                "link": link,
-                "location": location,
-                "type": type_,
-                "level": level,
-                "cost": cost,
-                "max_teams": int(max_teams),
-                "confirmed": int(confirmed),
-                "status": status
-            })
+            tournaments.append(
+                {
+                    "date": date,
+                    "name": name,
+                    "link": link,
+                    "location": location,
+                    "type": type_,
+                    "level": level,
+                    "cost": cost,
+                    "max_teams": int(max_teams),
+                    "confirmed": int(confirmed),
+                    "status": status,
+                }
+            )
         except Exception as e:
             print(f"Error parsing row: {e}")
 
     return tournaments
+
 
 def update_database_with_scraper():
     """
@@ -77,8 +81,18 @@ def update_database_with_scraper():
                 INSERT INTO tournaments (date, name, link, location, type, level, cost, max_teams, confirmed, status)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (t["date"], t["name"], t["link"], t["location"], t["type"], t["level"],
-                 t["cost"], t["max_teams"], t["confirmed"], t["status"]),
+                (
+                    t["date"],
+                    t["name"],
+                    t["link"],
+                    t["location"],
+                    t["type"],
+                    t["level"],
+                    t["cost"],
+                    t["max_teams"],
+                    t["confirmed"],
+                    t["status"],
+                ),
             )
             print(f"Inserted: {t['name']}")
         except Exception as e:
@@ -88,6 +102,7 @@ def update_database_with_scraper():
     cursor.close()
     conn.close()
     print("Database updated successfully.")
+
 
 if __name__ == "__main__":
     update_database_with_scraper()

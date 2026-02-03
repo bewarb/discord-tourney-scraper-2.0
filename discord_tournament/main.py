@@ -1,9 +1,12 @@
-import discord
-from discord.ext import commands, tasks
-from scraper import update_database_with_scraper
-from db import connect_db
-from dotenv import load_dotenv
 import os
+
+import discord
+from db import connect_db
+from discord.ext import commands, tasks
+from dotenv import load_dotenv
+from scraper import update_database_with_scraper
+from fetch_data import fetch_tournaments
+
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +29,7 @@ intents.message_content = True  # Ensure message content intent is enabled
 # Initialize the bot
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+
 # Background task to refresh the database every 3 hours
 @tasks.loop(hours=3)
 async def periodic_scraper():
@@ -36,6 +40,7 @@ async def periodic_scraper():
     except Exception as e:
         print(f"Error during periodic scraping: {str(e)}")
 
+
 @bot.event
 async def on_ready():
     """
@@ -45,6 +50,7 @@ async def on_ready():
     print(f"Bot is ready. Logged in as {bot.user}")
     periodic_scraper.start()
 
+
 @bot.command(name="tourney")
 async def tourney_command(ctx, *args):
     """
@@ -53,10 +59,14 @@ async def tourney_command(ctx, *args):
     try:
         # Default to user roles if no arguments provided
         user_roles = [role.name for role in ctx.author.roles]
-        allowed_types = [ROLE_TO_TYPE_MAPPING[role] for role in user_roles if role in ROLE_TO_TYPE_MAPPING]
+        allowed_types = [
+            ROLE_TO_TYPE_MAPPING[role] for role in user_roles if role in ROLE_TO_TYPE_MAPPING
+        ]
 
         # Parse arguments
-        type_filter = args[0] if len(args) > 0 and args[0] in ROLE_TO_TYPE_MAPPING.values() else None
+        type_filter = (
+            args[0] if len(args) > 0 and args[0] in ROLE_TO_TYPE_MAPPING.values() else None
+        )
         level_filter = args[1] if len(args) > 1 else None
         location_filter = args[2] if len(args) > 2 else None
 
@@ -93,6 +103,7 @@ async def tourney_command(ctx, *args):
     except Exception as e:
         await ctx.send(f"An error occurred: {str(e)}")
 
+
 @bot.command(name="refresh")
 async def refresh_command(ctx):
     """
@@ -104,39 +115,12 @@ async def refresh_command(ctx):
     except Exception as e:
         await ctx.send(f"An error occurred: {str(e)}")
 
-def fetch_tournaments(allowed_types=None, level_filter=None, location_filter=None):
-    """
-    Fetch tournaments by filters: type, level, and location.
-    """
-    conn = connect_db()
-    cursor = conn.cursor()
-
-    query = "SELECT * FROM tournaments WHERE 1=1"
-    params = []
-
-    if allowed_types:
-        query += " AND type IN ({})".format(", ".join(["%s"] * len(allowed_types)))
-        params.extend(allowed_types)
-
-    if level_filter:
-        query += " AND level = %s"
-        params.append(level_filter)
-
-    if location_filter:
-        query += " AND location ILIKE %s"
-        params.append(f"%{location_filter}%")
-
-    cursor.execute(query, params)
-    results = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return results
-
 @bot.event
 async def on_message(message):
     user_roles = [role.name for role in message.author.roles]
     print(f"User: {message.author.name}, Roles: {user_roles}")
     await bot.process_commands(message)
+
 
 # Run the bot
 if __name__ == "__main__":

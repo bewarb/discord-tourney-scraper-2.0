@@ -1,7 +1,7 @@
-import psycopg2
-from psycopg2 import sql
-from dotenv import load_dotenv
 import os
+
+import psycopg2
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -11,16 +11,13 @@ DB_NAME = os.getenv("DB_NAME", "discord_tournaments")
 DB_USER = os.getenv("DB_USER", "admin")
 DB_PASS = os.getenv("DB_PASS", "admin")
 
+
 def connect_db():
     """
     Establish a connection to the PostgreSQL database.
     """
-    return psycopg2.connect(
-        host=DB_HOST,
-        database=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS
-    )
+    return psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
+
 
 def initialize_database():
     """
@@ -30,7 +27,7 @@ def initialize_database():
     cursor = conn.cursor()
 
     # Create the tournaments table
-    create_table_query = '''
+    create_table_query = """
     CREATE TABLE IF NOT EXISTS tournaments (
         id SERIAL PRIMARY KEY,
         date TEXT NOT NULL,
@@ -44,12 +41,13 @@ def initialize_database():
         confirmed INTEGER,
         status TEXT
     )
-    '''
+    """
     cursor.execute(create_table_query)
     conn.commit()
     cursor.close()
     conn.close()
     print("Database initialized successfully.")
+
 
 if __name__ == "__main__":
     initialize_database()
