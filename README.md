@@ -1,99 +1,130 @@
 # discord-tourney-scraper-2.0
 
+A Discord bot that scrapes volleyball tournament data from the Yankee website, stores it in PostgreSQL, and lets Discord users query tournaments based on their roles.
+
+---
+
 ## Overview
 
-The Discord Tournament Scraper is a Python-based project that integrates with Discord to scrape and display volleyball tournament information from the Yankee website. It fetches tournament data, stores it in a PostgreSQL database, and provides Discord commands for users to filter and view tournaments based on their roles.
+The **Discord Tournament Scraper** is a Python-based application that:
 
-### Project Structure
+- Scrapes volleyball tournament data from the Yankee website  
+- Stores structured tournament data in a PostgreSQL database  
+- Exposes Discord commands to filter and view tournaments  
+- Automatically refreshes data on a schedule  
 
-1. Core Files
+It’s designed to be extensible, deployable, and eventually containerized.
 
-* main.py 
+---
 
-The main bot script that interacts with Discord.
+## Project Structure
 
-Handles commands like !tourney to fetch and display tournaments based on user roles.
+```text
+discord_tournament/
+├── main.py              # Discord bot entry point
+├── scraper.py           # Web scraping + DB update logic
+├── db.py                # Database connection + initialization
+├── fetch_data.py        # Query helpers for filtering tournaments
+├── scripts/
+│   ├── insert_data.py   # Insert sample data (testing)
+│   └── view_table.py    # Debug: print DB contents
+├── requirements.txt
+├── pyproject.toml
+└── README.md
+```
 
-Periodically updates the tournament database using the scraper.
+### Core Files
 
-Features:
+#### `main.py`
+- Runs the Discord bot  
+- Handles commands like `!tourney` and `!refresh`  
+- Filters tournaments based on user roles (M, W, RCO)  
+- Periodically refreshes tournament data (every 3 hours)
 
-Command filtering based on roles (M, W, RCO).
+#### `scraper.py`
+- Scrapes the Yankee tournaments webpage  
+- Extracts tournament metadata (date, name, location, status, etc.)  
+- Inserts cleaned data into PostgreSQL  
+- Handles missing fields and malformed rows
 
-Background task to refresh data every 3 hours.
+#### `db.py`
+- Centralized PostgreSQL connection logic  
+- Loads required environment variables  
+- Initializes the `tournaments` table if needed
 
-scraper.py
+#### `fetch_data.py`
+- Provides reusable query helpers  
+- Supports filtering by:
+  - tournament type
+  - level
+  - location
+  - combinations of criteria
 
-Scrapes the Yankee tournaments webpage to extract tournament data (e.g., name, date, location, status).
+#### Utility Scripts (`scripts/`)
+- `insert_data.py` – insert example data for testing  
+- `view_table.py` – print all tournaments in the database  
 
-Cleans and stores the data in a PostgreSQL database.
+---
 
-Handles edge cases like missing fields or unavailable links.
+##  Setup Instructions
 
-db.py
+### 1 Prerequisites
 
-Manages the PostgreSQL database connection.
+- **Python 3.11+**
+- **PostgreSQL**
+- **pip**
 
-Provides a reusable connect_db function for all database operations.
+Install Python dependencies:
 
-fetch_data.py
-
-Contains functions to query the database for specific filters (e.g., type, location, date).
-
-Modularized for easy integration and customization.
-
-Examples:
-
-Fetch tournaments by type (fetch_tournaments_by_type).
-
-Fetch tournaments by multiple criteria.
-
-insert_data.py
-
-A utility script for manually inserting example data into the database.
-
-Useful for testing or initializing the database.
-
-Setup Instructions
-
-1. Prerequisites
-
-Python (3.11 or compatible version)
-
-PostgreSQL installed locally
-
-Required Python libraries (listed in requirements.txt):
-
+```bash
 pip install -r requirements.txt
+```
 
-Environment VariablesCreate a .env file with the following variables:
+---
 
-DISCORD_TOKEN=<your_discord_bot_token>
+### 2 Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+DISCORD_TOKEN=your_discord_bot_token
 DB_HOST=localhost
 DB_NAME=discord_tournaments
 DB_USER=admin
-DB_PASS=<your_password>
+DB_PASS=your_password
+```
 
-2. Database Setup
+> ⚠️ Do **not** commit `.env` files. Use `.env.example` for sharing config structure.
+
+---
+
+### 3 Database Setup
 
 Access PostgreSQL:
 
+```bash
 psql -U <your_db_user>
+```
 
-Create Database and User:
+Create database and user:
 
+```sql
 CREATE DATABASE discord_tournaments;
 CREATE USER admin WITH PASSWORD '<your_password>';
+```
 
-Grant Permissions:
+Grant permissions:
 
+```sql
 GRANT ALL PRIVILEGES ON DATABASE discord_tournaments TO admin;
 \c discord_tournaments
 GRANT USAGE, SELECT, UPDATE ON SEQUENCE tournaments_id_seq TO admin;
 GRANT INSERT, SELECT, DELETE, UPDATE ON tournaments TO admin;
+```
 
-Create the Table:Run the following SQL command:
+Create the tournaments table:
 
+```sql
 CREATE TABLE tournaments (
     id SERIAL PRIMARY KEY,
     date TEXT NOT NULL,
@@ -107,76 +138,99 @@ CREATE TABLE tournaments (
     confirmed INTEGER,
     status TEXT
 );
+```
 
-3. Run the Project
+---
 
-A. Run the Scraper
+##  Running the Project
 
-Populates the database with tournament data:
+### A) Run the Scraper (populate DB)
 
-python scraper.py
+```bash
+python -m discord_tournament.scraper
+```
 
-B. Start the Bot
+### B) Start the Discord Bot
 
-Runs the Discord bot to listen for commands:
+```bash
+python -m discord_tournament.main
+```
 
-python main.py
+---
 
-Key Features
+##  Discord Commands
 
-Discord Integration:
+### `!tourney`
+Displays tournaments filtered by the user’s Discord roles.
 
-Commands:
+Supported role filters:
+- `M` – Men’s  
+- `W` – Women’s  
+- `RCO` – Recreational Co-ed  
 
-!tourney: Displays tournaments based on the user's assigned roles.
+Optional arguments:
 
-!refresh: Manually refreshes tournament data.
+```text
+!tourney <type> <level> <location>
+```
 
-Database Management:
+### `!refresh`
+Manually triggers a database refresh by re-running the scraper.
 
-Stores tournament data for efficient querying.
+---
 
-Allows filtering based on type, location, or other criteria.
+##  Key Features
 
-Web Scraping:
+### Discord Integration
+- Role-based filtering  
+- Clean formatted output  
+- Manual and automatic refresh options  
 
-Extracts data from the Yankee tournament site dynamically.
+### Database Management
+- Persistent storage via PostgreSQL  
+- Efficient querying and filtering  
+- Centralized DB access logic  
 
-Handles website structure changes gracefully.
+### Web Scraping
+- Dynamic extraction from the Yankee website  
+- Defensive parsing against malformed data  
+- Easy to adapt if site structure changes  
 
-Future Enhancements: Docker & Raspberry Pi Integration
+---
 
-Why Docker?
+##  Future Enhancements
 
-Simplifies setup by containerizing the project.
+### Docker & Raspberry Pi Deployment
 
-Ensures consistency across different environments.
+**Why Docker?**
+- Simplifies setup across machines  
+- Ensures consistent environments  
+- Ideal for lightweight deployment (Raspberry Pi)
 
-Easier deployment on lightweight devices like Raspberry Pi.
+**Planned Improvements**
+- Dockerfile + docker-compose  
+- PostgreSQL container integration  
+- ARM builds for Raspberry Pi  
+- Health checks + auto-restart  
+- Scheduled scraping jobs  
 
-Plan
+---
 
-Dockerize the Application:
+##  Contributing
 
-Create a Dockerfile to set up the Python environment and install dependencies.
+Contributions are welcome!
 
-Use docker-compose to orchestrate the bot, scraper, and PostgreSQL database.
+- Fork the repository  
+- Create a feature branch  
+- Submit a pull request  
 
-Deploy on Raspberry Pi:
+For bugs or questions, please open a GitHub issue.
 
-Build the Docker image for ARM architecture.
+---
 
-Schedule periodic scraping and ensure the bot runs continuously.
+##  Final Notes
 
-Streamline Updates:
+This project is actively evolving and designed with extensibility in mind.  
+Whether you’re contributing features, improving data quality, or deploying it somewhere fun — welcome aboard.
 
-Auto-restart the bot if it crashes.
-
-Implement health checks for the scraper and database.
-
-Contribution
-
-Feel free to fork this repository and submit pull requests for any improvements or features you’d like to add. For any issues or questions, open a GitHub issue.
-
-Happy Scraping! 🚀
-
+**Happy Scraping! **
