@@ -3,20 +3,33 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables (from .env if present)
 load_dotenv()
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_NAME = os.getenv("DB_NAME", "discord_tournaments")
-DB_USER = os.getenv("DB_USER", "admin")
-DB_PASS = os.getenv("DB_PASS", "admin")
+
+def _require_env(name: str) -> str:
+    """
+    Read an environment variable and fail fast with a helpful error if missing.
+    """
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(
+            f"Missing required environment variable: {name}. "
+            f"Add it to your .env file (or export it in your shell)."
+        )
+    return value
 
 
 def connect_db():
     """
-    Establish a connection to the PostgreSQL database.
+    Establish a connection to the PostgreSQL database using required env vars.
     """
-    return psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
+    return psycopg2.connect(
+        host=_require_env("DB_HOST"),
+        database=_require_env("DB_NAME"),
+        user=_require_env("DB_USER"),
+        password=_require_env("DB_PASS"),
+    )
 
 
 def initialize_database():
@@ -26,7 +39,6 @@ def initialize_database():
     conn = connect_db()
     cursor = conn.cursor()
 
-    # Create the tournaments table
     create_table_query = """
     CREATE TABLE IF NOT EXISTS tournaments (
         id SERIAL PRIMARY KEY,

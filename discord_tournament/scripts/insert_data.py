@@ -1,5 +1,4 @@
-from db import connect_db
-
+from discord_tournament.db import connect_db
 
 def insert_tournaments(data):
     conn = connect_db()
